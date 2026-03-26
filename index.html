@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Hatching Simulator</title>
+  <style>
+    body {
+      text-align: center;
+      font-family: Arial;
+      background: #f0f8ff;
+    }
+    #egg {
+      width: 150px;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    #egg:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+
+<h1>🐣 Egg Hatching Simulator</h1>
+<p>Click the egg to hatch it!</p>
+
+<img id="egg" src="https://i.imgur.com/8QfQZ5M.png" alt="egg">
+<p id="status">Clicks: 0</p>
+
+<script>
+  let clicks = 0;
+  const egg = document.getElementById("egg");
+  const status = document.getElementById("status");
+
+  egg.addEventListener("click", () => {
+    clicks++;
+    status.textContent = "Clicks: " + clicks;
+
+    if (clicks === 5) {
+      egg.src = "https://i.imgur.com/VzjP3ZK.png"; // cracked egg
+    }
+    if (clicks === 10) {
+      egg.src = "https://i.imgur.com/4AiXzf8.png"; // hatched creature
+      status.textContent = "🎉 It hatched!";
+    }
+  });
+</script>
+
+</body>
+</html>
