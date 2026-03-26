@@ -1,49 +1,84 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Hatching Simulator</title>
-  <style>
-    body {
-      text-align: center;
-      font-family: Arial;
-      background: #f0f8ff;
-    }
-    #egg {
-      width: 150px;
-      cursor: pointer;
-      transition: transform 0.2s;
-    }
-    #egg:active {
-      transform: scale(0.95);
-    }
-  </style>
+<meta charset="UTF-8">
+<title>Hatching Simulator</title>
+<style>
+  body {
+    font-family: Arial;
+    text-align: center;
+    background: #111;
+    color: white;
+  }
+  button {
+    padding: 10px 20px;
+    margin: 10px;
+    font-size: 16px;
+    cursor: pointer;
+  }
+  #egg {
+    font-size: 80px;
+    margin: 20px;
+  }
+  #pet {
+    font-size: 50px;
+    margin: 20px;
+    color: gold;
+  }
+</style>
 </head>
 <body>
 
-<h1>🐣 Egg Hatching Simulator</h1>
-<p>Click the egg to hatch it!</p>
+<h1>🐣 Hatching Simulator</h1>
 
-<img id="egg" src="https://i.imgur.com/8QfQZ5M.png" alt="egg">
-<p id="status">Clicks: 0</p>
+<p>Coins: <span id="coins">0</span></p>
+
+<div id="egg">🥚</div>
+<button onclick="hatch()">Hatch Egg (Cost: 10)</button>
+
+<h2>Your Pet:</h2>
+<div id="pet">?</div>
+
+<button onclick="buyAuto()">Buy Auto Hatch (Cost: 50)</button>
 
 <script>
-  let clicks = 0;
-  const egg = document.getElementById("egg");
-  const status = document.getElementById("status");
+let coins = 50;
+let auto = false;
 
-  egg.addEventListener("click", () => {
-    clicks++;
-    status.textContent = "Clicks: " + clicks;
+const pets = ["A","B","C","D","E","F","G","Z","X","Ω","★"];
 
-    if (clicks === 5) {
-      egg.src = "https://i.imgur.com/VzjP3ZK.png"; // cracked egg
-    }
-    if (clicks === 10) {
-      egg.src = "https://i.imgur.com/4AiXzf8.png"; // hatched creature
-      status.textContent = "🎉 It hatched!";
-    }
-  });
+function updateUI() {
+  document.getElementById("coins").textContent = coins;
+}
+
+function hatch() {
+  if (coins < 10) return alert("Not enough coins!");
+  
+  coins -= 10;
+
+  // random pet
+  const pet = pets[Math.floor(Math.random() * pets.length)];
+  document.getElementById("pet").textContent = pet;
+
+  // reward coins randomly
+  coins += Math.floor(Math.random() * 20) + 5;
+
+  updateUI();
+}
+
+function buyAuto() {
+  if (coins < 50) return alert("Not enough coins!");
+  coins -= 50;
+  auto = true;
+  updateUI();
+}
+
+// auto hatch loop
+setInterval(() => {
+  if (auto) hatch();
+}, 2000);
+
+updateUI();
 </script>
 
 </body>
