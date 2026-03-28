@@ -2,7 +2,8 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Hatching Simulator</title>
+<title>Pet Hatch Simulator</title>
+
 <style>
   body {
     font-family: Arial;
@@ -10,59 +11,180 @@
     background: #111;
     color: white;
   }
+
   button {
     padding: 10px 20px;
-    margin: 10px;
+    margin: 5px;
     font-size: 16px;
     cursor: pointer;
+    border-radius: 8px;
+    border: none;
   }
-  #egg {
-    font-size: 80px;
+
+  #petDisplay {
+    font-size: 60px;
     margin: 20px;
+    padding: 10px;
+    display: inline-block;
+    border-radius: 10px;
   }
-  #pet {
-    font-size: 50px;
-    margin: 20px;
-    color: gold;
+
+  .common { border: 3px solid gray; }
+  .rare { border: 3px solid blue; }
+  .epic { border: 3px solid purple; }
+  .legendary { border: 3px solid gold; }
+
+  .petItem {
+    font-size: 30px;
+    margin: 5px;
+    display: inline-block;
+    padding: 5px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+
+  #inventory, #equipped {
+    margin-top: 20px;
+    padding: 10px;
+    border-top: 2px solid #444;
+  }
+
+  #equipped {
+    border-top: 2px solid gold;
   }
 </style>
+
 </head>
 <body>
 
-<h1>🐣 Hatching Simulator</h1>
+<h1>🐣 Pet Hatch Simulator</h1>
 
 <p>Coins: <span id="coins">0</span></p>
+<p>Multiplier: <span id="multi">1</span>x</p>
 
-<div id="egg">🥚</div>
-<button onclick="hatch()">Hatch Egg (Cost: 10)</button>
+<button onclick="hatch(1)">Hatch (10)</button>
+<button onclick="hatch(3)">3x Hatch (30)</button>
 
-<h2>Your Pet:</h2>
-<div id="pet">?</div>
+<h2>Last Hatch:</h2>
+<div id="petDisplay">?</div>
 
-<button onclick="buyAuto()">Buy Auto Hatch (Cost: 50)</button>
+<br>
+
+<button onclick="buyAuto()">Auto (50)</button>
+<button onclick="buyLuck()">Luck (100)</button>
+
+<h2>⚔️ Equipped (Max 3)</h2>
+<div id="equipped"></div>
+
+<h2>🎒 Inventory</h2>
+<div id="inventory"></div>
 
 <script>
-let coins = 50;
+let coins = 100;
 let auto = false;
+let luck = 0;
 
-const pets = ["A","B","C","D","E","F","G","Z","X","Ω","★"];
+let inventory = [];
+let equipped = [];
+
+const pets = [
+  {emoji:"🐶", rarity:"common", chance:50, multi:1},
+  {emoji:"🐱", rarity:"common", chance:50, multi:1},
+  {emoji:"🐰", rarity:"rare", chance:30, multi:1.5},
+  {emoji:"🦊", rarity:"rare", chance:25, multi:1.6},
+  {emoji:"🐼", rarity:"epic", chance:15, multi:2.5},
+  {emoji:"🐸", rarity:"epic", chance:10, multi:3},
+  {emoji:"🐉", rarity:"legendary", chance:5, multi:5}
+];
+
+function getMultiplier() {
+  let total = 1;
+  equipped.forEach(p => total += (p.multi - 1));
+  return total.toFixed(1);
+}
 
 function updateUI() {
   document.getElementById("coins").textContent = coins;
+  document.getElementById("multi").textContent = getMultiplier();
+  renderInventory();
+  renderEquipped();
 }
 
-function hatch() {
-  if (coins < 10) return alert("Not enough coins!");
-  
-  coins -= 10;
+function getPet() {
+  let total = 0;
+  pets.forEach(p => total += p.chance + luck);
 
-  // random pet
-  const pet = pets[Math.floor(Math.random() * pets.length)];
-  document.getElementById("pet").textContent = pet;
+  let rand = Math.random() * total;
 
-  // reward coins randomly
-  coins += Math.floor(Math.random() * 20) + 5;
+  for (let pet of pets) {
+    rand -= (pet.chance + luck);
+    if (rand <= 0) return {...pet};
+  }
+}
 
+function hatch(amount) {
+  let cost = amount * 10;
+  if (coins < cost) return alert("Not enough coins!");
+
+  coins -= cost;
+
+  for (let i = 0; i < amount; i++) {
+    const pet = getPet();
+
+    const display = document.getElementById("petDisplay");
+    display.textContent = pet.emoji;
+    display.className = pet.rarity;
+
+    inventory.push(pet);
+
+    let reward = (Math.random() * 10 + 5) * getMultiplier();
+    coins += Math.floor(reward);
+  }
+
+  updateUI();
+}
+
+function renderInventory() {
+  const inv = document.getElementById("inventory");
+  inv.innerHTML = "";
+
+  inventory.forEach((p, index) => {
+    const div = document.createElement("div");
+    div.className = "petItem " + p.rarity;
+    div.textContent = p.emoji;
+
+    div.onclick = () => equipPet(index);
+
+    inv.appendChild(div);
+  });
+}
+
+function renderEquipped() {
+  const eq = document.getElementById("equipped");
+  eq.innerHTML = "";
+
+  equipped.forEach((p, index) => {
+    const div = document.createElement("div");
+    div.className = "petItem " + p.rarity;
+    div.textContent = p.emoji;
+
+    div.onclick = () => unequipPet(index);
+
+    eq.appendChild(div);
+  });
+}
+
+function equipPet(index) {
+  if (equipped.length >= 3) return alert("Max 3 pets!");
+
+  equipped.push(inventory[index]);
+  inventory.splice(index, 1);
+  updateUI();
+}
+
+function unequipPet(index) {
+  inventory.push(equipped[index]);
+  equipped.splice(index, 1);
   updateUI();
 }
 
@@ -73,10 +195,17 @@ function buyAuto() {
   updateUI();
 }
 
-// auto hatch loop
+function buyLuck() {
+  if (coins < 100) return alert("Not enough coins!");
+  coins -= 100;
+  luck += 2;
+  updateUI();
+}
+
+// auto hatch
 setInterval(() => {
-  if (auto) hatch();
-}, 2000);
+  if (auto) hatch(1);
+}, 1500);
 
 updateUI();
 </script>
