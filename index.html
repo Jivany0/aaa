@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Pet Hatch Simulator</title>
+<title>Advanced Hatch Simulator</title>
 
 <style>
   body {
@@ -13,26 +13,19 @@
   }
 
   button {
-    padding: 10px 20px;
+    padding: 10px 15px;
     margin: 5px;
-    font-size: 16px;
+    font-size: 14px;
     cursor: pointer;
     border-radius: 8px;
     border: none;
   }
 
-  #petDisplay {
-    font-size: 60px;
-    margin: 20px;
-    padding: 10px;
-    display: inline-block;
-    border-radius: 10px;
+  #clickBtn {
+    font-size: 25px;
+    padding: 15px;
+    background: orange;
   }
-
-  .common { border: 3px solid gray; }
-  .rare { border: 3px solid blue; }
-  .epic { border: 3px solid purple; }
-  .legendary { border: 3px solid gold; }
 
   .petItem {
     font-size: 30px;
@@ -43,169 +36,179 @@
     cursor: pointer;
   }
 
-  #inventory, #equipped {
-    margin-top: 20px;
-    padding: 10px;
-    border-top: 2px solid #444;
-  }
+  .common { border: 3px solid gray; }
+  .rare { border: 3px solid blue; }
+  .epic { border: 3px solid purple; }
+  .legendary { border: 3px solid gold; }
+  .mythic { border: 3px solid red; }
+  .secret { border: 3px solid cyan; box-shadow: 0 0 10px cyan; }
 
-  #equipped {
-    border-top: 2px solid gold;
-  }
 </style>
-
 </head>
+
 <body>
 
-<h1>🐣 Pet Hatch Simulator</h1>
+<h1>🌍 Multi-Egg Simulator</h1>
 
 <p>Coins: <span id="coins">0</span></p>
-<p>Multiplier: <span id="multi">1</span>x</p>
+<p>Click Power: <span id="power">1</span></p>
 
-<button onclick="hatch(1)">Hatch (10)</button>
-<button onclick="hatch(3)">3x Hatch (30)</button>
+<button id="clickBtn" onclick="clickCoins()">CLICK</button>
 
-<h2>Last Hatch:</h2>
-<div id="petDisplay">?</div>
+<h2>🥚 Eggs</h2>
+<button onclick="selectEgg(0)">Basic Egg (10)</button>
+<button onclick="selectEgg(1)">Forest Egg (50)</button>
+<button onclick="selectEgg(2)">Mythic Egg (200)</button>
 
-<br>
+<p>Selected: <span id="currentEgg">Basic Egg</span></p>
 
-<button onclick="buyAuto()">Auto (50)</button>
-<button onclick="buyLuck()">Luck (100)</button>
+<button onclick="hatch(1)">Hatch</button>
+<button onclick="hatch(3)">3x Hatch</button>
 
-<h2>⚔️ Equipped (Max 3)</h2>
+<h2>⚔️ Equipped (Max 2)</h2>
 <div id="equipped"></div>
 
 <h2>🎒 Inventory</h2>
 <div id="inventory"></div>
 
 <script>
-let coins = 100;
-let auto = false;
-let luck = 0;
-
+let coins = 0;
 let inventory = [];
 let equipped = [];
+let maxEquip = 2;
+let currentEgg = 0;
 
-const pets = [
-  {emoji:"🐶", rarity:"common", chance:50, multi:1},
-  {emoji:"🐱", rarity:"common", chance:50, multi:1},
-  {emoji:"🐰", rarity:"rare", chance:30, multi:1.5},
-  {emoji:"🦊", rarity:"rare", chance:25, multi:1.6},
-  {emoji:"🐼", rarity:"epic", chance:15, multi:2.5},
-  {emoji:"🐸", rarity:"epic", chance:10, multi:3},
-  {emoji:"🐉", rarity:"legendary", chance:5, multi:5}
+// MULTIPLE EGGS
+const eggs = [
+{
+  name: "Basic Egg",
+  cost: 10,
+  pets: [
+    {emoji:"🐶", rarity:"common", chance:50, power:1},
+    {emoji:"🐱", rarity:"common", chance:40, power:1},
+    {emoji:"🐰", rarity:"rare", chance:25, power:2},
+    {emoji:"🐼", rarity:"epic", chance:10, power:4},
+    {emoji:"🐉", rarity:"legendary", chance:3, power:8},
+    {emoji:"🔥", rarity:"mythic", chance:1, power:15},
+    {emoji:"👑", rarity:"secret", chance:0.2, power:50}
+  ]
+},
+{
+  name: "Forest Egg",
+  cost: 50,
+  pets: [
+    {emoji:"🦊", rarity:"common", chance:50, power:2},
+    {emoji:"🐻", rarity:"rare", chance:30, power:3},
+    {emoji:"🦌", rarity:"epic", chance:15, power:6},
+    {emoji:"🌳", rarity:"legendary", chance:5, power:12},
+    {emoji:"🍀", rarity:"mythic", chance:1, power:25},
+    {emoji:"🌈", rarity:"secret", chance:0.2, power:70}
+  ]
+},
+{
+  name: "Mythic Egg",
+  cost: 200,
+  pets: [
+    {emoji:"😈", rarity:"epic", chance:40, power:8},
+    {emoji:"👹", rarity:"legendary", chance:20, power:15},
+    {emoji:"⚡", rarity:"mythic", chance:5, power:40},
+    {emoji:"💎", rarity:"secret", chance:0.5, power:120}
+  ]
+}
 ];
 
-function getMultiplier() {
+// CLICK POWER
+function getPower() {
   let total = 1;
-  equipped.forEach(p => total += (p.multi - 1));
-  return total.toFixed(1);
+  equipped.forEach(p => total += p.power);
+  return total;
 }
 
-function updateUI() {
-  document.getElementById("coins").textContent = coins;
-  document.getElementById("multi").textContent = getMultiplier();
-  renderInventory();
-  renderEquipped();
+function clickCoins() {
+  coins += getPower();
+  updateUI();
 }
 
-function getPet() {
-  let total = 0;
-  pets.forEach(p => total += p.chance + luck);
-
-  let rand = Math.random() * total;
-
-  for (let pet of pets) {
-    rand -= (pet.chance + luck);
-    if (rand <= 0) return {...pet};
-  }
+// SELECT EGG
+function selectEgg(index) {
+  currentEgg = index;
+  document.getElementById("currentEgg").textContent = eggs[index].name;
 }
 
+// HATCH
 function hatch(amount) {
-  let cost = amount * 10;
+  const egg = eggs[currentEgg];
+  let cost = egg.cost * amount;
+
   if (coins < cost) return alert("Not enough coins!");
 
   coins -= cost;
 
   for (let i = 0; i < amount; i++) {
-    const pet = getPet();
-
-    const display = document.getElementById("petDisplay");
-    display.textContent = pet.emoji;
-    display.className = pet.rarity;
-
-    inventory.push(pet);
-
-    let reward = (Math.random() * 10 + 5) * getMultiplier();
-    coins += Math.floor(reward);
+    inventory.push(getPet(egg));
   }
 
   updateUI();
 }
 
+// RNG
+function getPet(egg) {
+  let total = egg.pets.reduce((sum, p) => sum + p.chance, 0);
+  let rand = Math.random() * total;
+
+  for (let pet of egg.pets) {
+    rand -= pet.chance;
+    if (rand <= 0) return {...pet};
+  }
+}
+
+// INVENTORY
 function renderInventory() {
   const inv = document.getElementById("inventory");
   inv.innerHTML = "";
 
-  inventory.forEach((p, index) => {
+  inventory.forEach((p, i) => {
     const div = document.createElement("div");
     div.className = "petItem " + p.rarity;
     div.textContent = p.emoji;
-
-    div.onclick = () => equipPet(index);
-
+    div.onclick = () => equipPet(i);
     inv.appendChild(div);
   });
 }
 
+// EQUIP
 function renderEquipped() {
   const eq = document.getElementById("equipped");
   eq.innerHTML = "";
 
-  equipped.forEach((p, index) => {
+  equipped.forEach((p, i) => {
     const div = document.createElement("div");
     div.className = "petItem " + p.rarity;
     div.textContent = p.emoji;
-
-    div.onclick = () => unequipPet(index);
-
+    div.onclick = () => unequipPet(i);
     eq.appendChild(div);
   });
 }
 
-function equipPet(index) {
-  if (equipped.length >= 3) return alert("Max 3 pets!");
-
-  equipped.push(inventory[index]);
-  inventory.splice(index, 1);
+function equipPet(i) {
+  if (equipped.length >= maxEquip) return alert("Max 2 pets!");
+  equipped.push(inventory[i]);
+  inventory.splice(i, 1);
   updateUI();
 }
 
-function unequipPet(index) {
-  inventory.push(equipped[index]);
-  equipped.splice(index, 1);
+function unequipPet(i) {
+  inventory.push(equipped[i]);
+  equipped.splice(i, 1);
   updateUI();
 }
 
-function buyAuto() {
-  if (coins < 50) return alert("Not enough coins!");
-  coins -= 50;
-  auto = true;
-  updateUI();
+function updateUI() {
+  document.getElementById("coins").textContent = coins;
+  document.getElementById("power").textContent = getPower();
+  renderInventory();
+  renderEquipped();
 }
-
-function buyLuck() {
-  if (coins < 100) return alert("Not enough coins!");
-  coins -= 100;
-  luck += 2;
-  updateUI();
-}
-
-// auto hatch
-setInterval(() => {
-  if (auto) hatch(1);
-}, 1500);
 
 updateUI();
 </script>
