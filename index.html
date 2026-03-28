@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Advanced Hatch Simulator</title>
+<title>Ultimate Simulator X</title>
 
 <style>
   body {
@@ -13,9 +13,8 @@
   }
 
   button {
-    padding: 10px 15px;
+    padding: 10px;
     margin: 5px;
-    font-size: 14px;
     cursor: pointer;
     border-radius: 8px;
     border: none;
@@ -28,10 +27,10 @@
   }
 
   .petItem {
-    font-size: 30px;
+    font-size: 26px;
     margin: 5px;
     display: inline-block;
-    padding: 5px;
+    padding: 6px;
     border-radius: 8px;
     cursor: pointer;
   }
@@ -43,27 +42,42 @@
   .mythic { border: 3px solid red; }
   .secret { border: 3px solid cyan; box-shadow: 0 0 10px cyan; }
 
+  #inventory, #equipped {
+    margin-top: 15px;
+    border-top: 2px solid #444;
+  }
 </style>
 </head>
 
 <body>
 
-<h1>🌍 Multi-Egg Simulator</h1>
+<h1>🐣 Simulator X</h1>
 
 <p>Coins: <span id="coins">0</span></p>
-<p>Click Power: <span id="power">1</span></p>
+<p>Rebirths: <span id="rebirths">0</span></p>
+<p>Power: <span id="power">1</span></p>
 
 <button id="clickBtn" onclick="clickCoins()">CLICK</button>
 
 <h2>🥚 Eggs</h2>
-<button onclick="selectEgg(0)">Basic Egg (10)</button>
-<button onclick="selectEgg(1)">Forest Egg (50)</button>
-<button onclick="selectEgg(2)">Mythic Egg (200)</button>
+<button onclick="selectEgg(0)">Basic (10)</button>
+<button onclick="selectEgg(1)">Forest (50)</button>
+<button onclick="selectEgg(2)">Mythic (200)</button>
+<button onclick="selectEgg(3)">💎 Diamond (500)</button>
+<button onclick="selectEgg(4)">🐣 Easter Egg (300)</button>
+<button onclick="selectEgg(5)">🥚 Golden Easter (800)</button>
 
 <p>Selected: <span id="currentEgg">Basic Egg</span></p>
 
 <button onclick="hatch(1)">Hatch</button>
 <button onclick="hatch(3)">3x Hatch</button>
+
+<h2>🛒 Shop</h2>
+<button onclick="buyAutoClick()">Auto Click (200)</button>
+<button onclick="buyPowerBoost()">+1 Base Power (150)</button>
+
+<h2>♻️ Rebirth</h2>
+<button onclick="rebirth()">Rebirth (10,000 coins)</button>
 
 <h2>⚔️ Equipped (Max 2)</h2>
 <div id="equipped"></div>
@@ -73,12 +87,17 @@
 
 <script>
 let coins = 0;
+let rebirths = 0;
+let basePower = 1;
+
 let inventory = [];
 let equipped = [];
 let maxEquip = 2;
-let currentEgg = 0;
 
-// MULTIPLE EGGS
+let currentEgg = 0;
+let autoClick = false;
+
+// EGGS (MORE + EVENT)
 const eggs = [
 {
   name: "Basic Egg",
@@ -86,10 +105,7 @@ const eggs = [
   pets: [
     {emoji:"🐶", rarity:"common", chance:50, power:1},
     {emoji:"🐱", rarity:"common", chance:40, power:1},
-    {emoji:"🐰", rarity:"rare", chance:25, power:2},
-    {emoji:"🐼", rarity:"epic", chance:10, power:4},
     {emoji:"🐉", rarity:"legendary", chance:3, power:8},
-    {emoji:"🔥", rarity:"mythic", chance:1, power:15},
     {emoji:"👑", rarity:"secret", chance:0.2, power:50}
   ]
 },
@@ -99,10 +115,7 @@ const eggs = [
   pets: [
     {emoji:"🦊", rarity:"common", chance:50, power:2},
     {emoji:"🐻", rarity:"rare", chance:30, power:3},
-    {emoji:"🦌", rarity:"epic", chance:15, power:6},
-    {emoji:"🌳", rarity:"legendary", chance:5, power:12},
-    {emoji:"🍀", rarity:"mythic", chance:1, power:25},
-    {emoji:"🌈", rarity:"secret", chance:0.2, power:70}
+    {emoji:"🌳", rarity:"legendary", chance:5, power:12}
   ]
 },
 {
@@ -110,29 +123,52 @@ const eggs = [
   cost: 200,
   pets: [
     {emoji:"😈", rarity:"epic", chance:40, power:8},
-    {emoji:"👹", rarity:"legendary", chance:20, power:15},
     {emoji:"⚡", rarity:"mythic", chance:5, power:40},
     {emoji:"💎", rarity:"secret", chance:0.5, power:120}
+  ]
+},
+{
+  name: "Diamond Egg",
+  cost: 500,
+  pets: [
+    {emoji:"💠", rarity:"legendary", chance:30, power:20},
+    {emoji:"💎", rarity:"mythic", chance:10, power:60},
+    {emoji:"👑", rarity:"secret", chance:1, power:150}
+  ]
+},
+{
+  name: "Easter Egg 🐣",
+  cost: 300,
+  pets: [
+    {emoji:"🐤", rarity:"common", chance:50, power:5},
+    {emoji:"🥚", rarity:"rare", chance:30, power:10},
+    {emoji:"🐰", rarity:"epic", chance:15, power:25},
+    {emoji:"🌸", rarity:"legendary", chance:5, power:50}
+  ]
+},
+{
+  name: "Golden Easter 🥚",
+  cost: 800,
+  pets: [
+    {emoji:"🐥", rarity:"rare", chance:40, power:15},
+    {emoji:"✨", rarity:"epic", chance:25, power:35},
+    {emoji:"🌈", rarity:"mythic", chance:10, power:80},
+    {emoji:"👑", rarity:"secret", chance:1, power:200}
   ]
 }
 ];
 
-// CLICK POWER
+// POWER
 function getPower() {
-  let total = 1;
+  let total = basePower + rebirths * 2;
   equipped.forEach(p => total += p.power);
   return total;
 }
 
+// CLICK
 function clickCoins() {
   coins += getPower();
   updateUI();
-}
-
-// SELECT EGG
-function selectEgg(index) {
-  currentEgg = index;
-  document.getElementById("currentEgg").textContent = eggs[index].name;
 }
 
 // HATCH
@@ -153,59 +189,94 @@ function hatch(amount) {
 
 // RNG
 function getPet(egg) {
-  let total = egg.pets.reduce((sum, p) => sum + p.chance, 0);
-  let rand = Math.random() * total;
+  let total = egg.pets.reduce((s,p)=>s+p.chance,0);
+  let rand = Math.random()*total;
 
-  for (let pet of egg.pets) {
-    rand -= pet.chance;
-    if (rand <= 0) return {...pet};
+  for (let p of egg.pets) {
+    rand -= p.chance;
+    if (rand <= 0) return {...p};
   }
+}
+
+// SELECT
+function selectEgg(i) {
+  currentEgg = i;
+  document.getElementById("currentEgg").textContent = eggs[i].name;
 }
 
 // INVENTORY
 function renderInventory() {
-  const inv = document.getElementById("inventory");
+  let inv = document.getElementById("inventory");
   inv.innerHTML = "";
 
-  inventory.forEach((p, i) => {
-    const div = document.createElement("div");
-    div.className = "petItem " + p.rarity;
-    div.textContent = p.emoji;
-    div.onclick = () => equipPet(i);
-    inv.appendChild(div);
+  inventory.forEach((p,i)=>{
+    let d = document.createElement("div");
+    d.className = "petItem "+p.rarity;
+    d.innerHTML = `${p.emoji}<div style="font-size:12px;">+${p.power}</div>`;
+    d.onclick=()=>equipPet(i);
+    inv.appendChild(d);
   });
 }
 
 // EQUIP
 function renderEquipped() {
-  const eq = document.getElementById("equipped");
-  eq.innerHTML = "";
+  let eq = document.getElementById("equipped");
+  eq.innerHTML="";
 
-  equipped.forEach((p, i) => {
-    const div = document.createElement("div");
-    div.className = "petItem " + p.rarity;
-    div.textContent = p.emoji;
-    div.onclick = () => unequipPet(i);
-    eq.appendChild(div);
+  equipped.forEach((p,i)=>{
+    let d=document.createElement("div");
+    d.className="petItem "+p.rarity;
+    d.innerHTML=`${p.emoji}<div style="font-size:12px;color:lime;">+${p.power}</div>`;
+    d.onclick=()=>unequipPet(i);
+    eq.appendChild(d);
   });
 }
 
-function equipPet(i) {
-  if (equipped.length >= maxEquip) return alert("Max 2 pets!");
+function equipPet(i){
+  if(equipped.length>=2) return alert("Max 2!");
   equipped.push(inventory[i]);
-  inventory.splice(i, 1);
+  inventory.splice(i,1);
   updateUI();
 }
 
-function unequipPet(i) {
+function unequipPet(i){
   inventory.push(equipped[i]);
-  equipped.splice(i, 1);
+  equipped.splice(i,1);
   updateUI();
 }
 
-function updateUI() {
-  document.getElementById("coins").textContent = coins;
-  document.getElementById("power").textContent = getPower();
+// SHOP
+function buyAutoClick(){
+  if(coins<200)return alert("Not enough!");
+  coins-=200;
+  autoClick=true;
+}
+
+function buyPowerBoost(){
+  if(coins<150)return alert("Not enough!");
+  coins-=150;
+  basePower+=1;
+}
+
+// REBIRTH
+function rebirth(){
+  if(coins<10000)return alert("Need 10k!");
+  coins=0;
+  inventory=[];
+  equipped=[];
+  rebirths++;
+}
+
+// AUTO
+setInterval(()=>{
+  if(autoClick) clickCoins();
+},500);
+
+// UPDATE
+function updateUI(){
+  document.getElementById("coins").textContent=coins;
+  document.getElementById("rebirths").textContent=rebirths;
+  document.getElementById("power").textContent=getPower();
   renderInventory();
   renderEquipped();
 }
