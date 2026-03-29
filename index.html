@@ -2,287 +2,1264 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Ultimate Simulator X</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wuwa Defense</title>
 <style>
+  @import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Orbitron:wght@400;700;900&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --bg: #060a12;
+    --bg2: #0c1220;
+    --bg3: #111927;
+    --panel: #0e1825;
+    --border: #1e3a5a;
+    --accent: #00d4ff;
+    --accent2: #ff6b35;
+    --accent3: #9b59b6;
+    --gold: #f0c040;
+    --green: #39ff14;
+    --red: #ff3355;
+    --text: #c8ddf0;
+    --text2: #7a9bb5;
+    --cell-size: 70px;
+    --cols: 9;
+    --rows: 5;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
   body {
-    font-family: Arial;
-    text-align: center;
-    background: #111;
-    color: white;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Rajdhani', sans-serif;
+    font-size: 14px;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
   }
 
-  button {
+  /* ── TOP HUD ── */
+  #hud {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 6px 12px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  #hud .title {
+    font-family: 'Orbitron', sans-serif;
+    font-size: 16px;
+    font-weight: 900;
+    color: var(--accent);
+    text-shadow: 0 0 12px var(--accent);
+    letter-spacing: 2px;
+    margin-right: 8px;
+  }
+  .hud-stat {
+    display: flex; align-items: center; gap: 6px;
+    background: var(--bg3); border: 1px solid var(--border);
+    padding: 3px 10px; border-radius: 4px;
+    font-family: 'Share Tech Mono', monospace; font-size: 13px;
+  }
+  .hud-stat .lbl { color: var(--text2); font-size: 11px; margin-right: 2px; }
+  .hud-stat.coins .val { color: var(--gold); }
+  .hud-stat.kills .val { color: var(--green); }
+  .hud-stat.wave .val { color: var(--accent2); }
+  .hud-stat.hp .val { color: var(--red); }
+  #btn-wave {
+    margin-left: auto;
+    background: var(--accent2);
+    color: #000; font-family: 'Orbitron', sans-serif;
+    font-size: 12px; font-weight: 700; letter-spacing: 1px;
+    border: none; padding: 6px 14px; border-radius: 4px; cursor: pointer;
+    text-transform: uppercase; transition: filter .15s;
+  }
+  #btn-wave:hover { filter: brightness(1.2); }
+  #btn-wave:disabled { opacity: .4; cursor: not-allowed; }
+  #tab-btns { display: flex; gap: 6px; }
+  .tab-btn {
+    font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 1px;
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+    padding: 4px 10px; border-radius: 4px; cursor: pointer; transition: all .15s;
+  }
+  .tab-btn.active, .tab-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MAIN LAYOUT ── */
+  #main {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+
+  /* ── GRID AREA ── */
+  #grid-wrap {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
     padding: 10px;
-    margin: 5px;
+    position: relative;
+  }
+
+  #game-grid {
+    display: grid;
+    grid-template-columns: repeat(9, var(--cell-size));
+    grid-template-rows: repeat(5, var(--cell-size));
+    gap: 2px;
+    position: relative;
+  }
+
+  .cell {
+    width: var(--cell-size); height: var(--cell-size);
+    background: linear-gradient(135deg, #0a1520 60%, #0e1e30);
+    border: 1px solid #1a2d44;
+    border-radius: 3px;
     cursor: pointer;
-    border-radius: 8px;
-    border: none;
+    position: relative;
+    overflow: hidden;
+    transition: background .15s, border-color .15s;
   }
+  .cell:hover { border-color: var(--accent); background: #10202e; }
+  .cell.enemy-col { background: linear-gradient(135deg, #1a0a10 60%, #220f18); border-color: #3a1a25; }
+  .cell.enemy-col:hover { border-color: var(--red); }
+  .cell.has-deployable { cursor: default; }
+  .cell.has-deployable:hover { border-color: var(--gold); }
 
-  #clickBtn {
-    font-size: 25px;
-    padding: 15px;
-    background: orange;
-  }
-
-  .petItem {
-    font-size: 26px;
-    margin: 5px;
-    display: inline-block;
-    padding: 6px;
-    border-radius: 8px;
+  /* deployable on cell */
+  .deploy-token {
+    position: absolute; inset: 4px;
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 22px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
     cursor: pointer;
+    transition: transform .1s;
+    z-index: 2;
+  }
+  .deploy-token:hover { transform: scale(1.05); }
+  .deploy-token .d-name { font-size: 8px; color: var(--text2); font-family: 'Share Tech Mono', monospace; margin-top: 1px; }
+  .deploy-token .d-hp-bar {
+    position: absolute; bottom: 2px; left: 4px; right: 4px;
+    height: 3px; background: #1a2d44; border-radius: 2px;
+  }
+  .deploy-token .d-hp-fill {
+    height: 100%; background: var(--green); border-radius: 2px; transition: width .3s;
   }
 
-  .common { border: 3px solid gray; }
-  .rare { border: 3px solid blue; }
-  .epic { border: 3px solid purple; }
-  .legendary { border: 3px solid gold; }
-  .mythic { border: 3px solid red; }
-  .secret { border: 3px solid cyan; box-shadow: 0 0 10px cyan; }
+  /* enemy token */
+  .enemy-token {
+    position: absolute;
+    width: 44px; height: 44px;
+    top: 50%; transform: translateY(-50%);
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px;
+    border: 2px solid var(--red);
+    background: radial-gradient(circle, #2a0a10, #1a0508);
+    z-index: 3;
+    transition: left .6s linear;
+    pointer-events: none;
+  }
+  .enemy-token .e-hp-bar {
+    position: absolute; bottom: -8px; left: -6px; right: -6px;
+    height: 3px; background: #3a1a25; border-radius: 2px;
+  }
+  .enemy-token .e-hp-fill { height: 100%; background: var(--red); border-radius: 2px; }
 
-  #inventory, #equipped {
-    margin-top: 15px;
-    border-top: 2px solid #444;
+  /* projectile */
+  .projectile {
+    position: absolute; width: 8px; height: 8px;
+    border-radius: 50%; background: var(--accent);
+    box-shadow: 0 0 8px var(--accent);
+    z-index: 10; pointer-events: none;
+    transition: all .2s linear;
+  }
+
+  .dmg-text {
+    position: absolute; z-index: 20; font-family: 'Orbitron', sans-serif;
+    font-size: 11px; font-weight: 700; pointer-events: none;
+    animation: floatUp .7s ease-out forwards;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-28px); }
+  }
+
+  /* lane overlay arrows */
+  .lane-arrow {
+    position: absolute; right: -18px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px; color: var(--red); opacity: .5;
+    pointer-events: none;
+  }
+
+  /* ── RIGHT PANEL ── */
+  #right-panel {
+    width: 320px;
+    background: var(--panel);
+    border-left: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .panel-tab { display: none; flex-direction: column; flex: 1; overflow: hidden; }
+  .panel-tab.active { display: flex; }
+
+  .panel-section {
+    border-bottom: 1px solid var(--border);
+    padding: 10px 12px;
+  }
+  .section-title {
+    font-family: 'Orbitron', sans-serif; font-size: 11px;
+    color: var(--accent); letter-spacing: 2px; margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+
+  /* Deploy slots */
+  #deploy-slots {
+    display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px;
+    padding: 10px;
+  }
+  .slot-card {
+    background: var(--bg3); border: 1px solid var(--border); border-radius: 6px;
+    padding: 6px; display: flex; flex-direction: column;
+    align-items: center; gap: 3px; cursor: pointer; transition: all .15s;
+    position: relative;
+  }
+  .slot-card.selected { border-color: var(--accent); background: #0e2030; }
+  .slot-card:hover { border-color: var(--text2); }
+  .slot-card.locked { opacity: .3; cursor: not-allowed; }
+  .slot-card .s-icon { font-size: 20px; }
+  .slot-card .s-name { font-size: 9px; color: var(--text2); text-align: center; }
+  .slot-card .s-cost { font-size: 9px; color: var(--gold); font-family: 'Share Tech Mono', monospace; }
+  .slot-card .s-lock { position: absolute; top: 2px; right: 4px; font-size: 10px; color: var(--text2); }
+
+  /* Stats panel */
+  #stats-scroll {
+    overflow-y: auto; flex: 1; padding: 10px 12px;
+  }
+  #stats-scroll::-webkit-scrollbar { width: 4px; }
+  #stats-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .deployable-select {
+    display: flex; gap: 6px; padding: 8px 12px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--border);
+  }
+  .d-select-btn {
+    font-family: 'Share Tech Mono', monospace; font-size: 10px;
+    background: var(--bg3); border: 1px solid var(--border); color: var(--text2);
+    padding: 2px 8px; border-radius: 3px; cursor: pointer;
+  }
+  .d-select-btn.active { border-color: var(--accent); color: var(--accent); }
+
+  .stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 4px 0; border-bottom: 1px solid #111f30;
+    font-family: 'Share Tech Mono', monospace; font-size: 11px;
+  }
+  .stat-row .s-name { color: var(--text2); }
+  .stat-row .s-val { color: var(--accent); }
+  .stat-row .s-val.crit { color: var(--gold); }
+  .stat-row .s-val.atk { color: var(--accent2); }
+
+  .reroll-section { padding: 10px 12px; border-top: 1px solid var(--border); }
+  .reroll-btn {
+    width: 100%; font-family: 'Orbitron', sans-serif; font-size: 11px;
+    background: var(--bg3); border: 1px solid var(--accent3);
+    color: var(--accent3); padding: 7px; border-radius: 4px; cursor: pointer;
+    letter-spacing: 1px; transition: all .15s; margin-bottom: 6px;
+  }
+  .reroll-btn:hover { background: #1a0a2a; }
+  .reroll-btn .cost { color: var(--gold); }
+  .lock-stat-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 3px 0; font-family: 'Share Tech Mono', monospace; font-size: 10px;
+    color: var(--text2);
+  }
+  .lock-stat-row input[type=checkbox] { cursor: pointer; accent-color: var(--accent3); }
+
+  /* Gacha / Store */
+  #store-scroll { overflow-y: auto; flex: 1; padding: 10px 12px; }
+  #store-scroll::-webkit-scrollbar { width: 4px; }
+  #store-scroll::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+  .store-section-title {
+    font-family: 'Orbitron', sans-serif; font-size: 10px; letter-spacing: 2px;
+    color: var(--text2); margin: 8px 0 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px;
+  }
+  .weapon-card {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px; margin-bottom: 6px; cursor: pointer;
+    transition: all .15s;
+  }
+  .weapon-card:hover { border-color: var(--gold); }
+  .weapon-card.owned { border-color: var(--green); opacity: .7; cursor: not-allowed; }
+  .weapon-card .w-icon { font-size: 22px; }
+  .weapon-card .w-info { flex: 1; }
+  .weapon-card .w-name { font-size: 13px; font-weight: 600; }
+  .weapon-card .w-stars { color: var(--gold); font-size: 10px; }
+  .weapon-card .w-stat { font-size: 10px; color: var(--text2); font-family: 'Share Tech Mono', monospace; }
+  .weapon-card .w-cost { font-size: 11px; color: var(--gold); font-family: 'Share Tech Mono', monospace; }
+  .w5 .w-name { color: #ffd700; }
+  .w4 .w-name { color: #c080ff; }
+  .w3 .w-name { color: #80aaff; }
+
+  .upgrade-card {
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 6px; padding: 8px 10px; margin-bottom: 5px;
+  }
+  .upgrade-card .u-info .u-name { font-size: 12px; font-weight: 600; }
+  .upgrade-card .u-info .u-desc { font-size: 10px; color: var(--text2); }
+  .upgrade-card .u-btn {
+    font-family: 'Orbitron', sans-serif; font-size: 10px;
+    background: var(--bg); border: 1px solid var(--border); color: var(--text);
+    padding: 4px 8px; border-radius: 3px; cursor: pointer; transition: all .15s;
+    white-space: nowrap;
+  }
+  .upgrade-card .u-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  .gacha-btn {
+    width: 100%; font-family: 'Orbitron', sans-serif; font-size: 12px; font-weight: 700;
+    padding: 10px; border-radius: 4px; border: none; cursor: pointer;
+    letter-spacing: 2px; transition: all .2s; margin-bottom: 8px;
+  }
+  .gacha-btn.single { background: linear-gradient(90deg, #1a2a3a, #0e3a5a); color: var(--accent); border: 1px solid var(--accent); }
+  .gacha-btn.ten { background: linear-gradient(90deg, #2a1a3a, #3a0e5a); color: #c080ff; border: 1px solid #c080ff; }
+  .gacha-btn:hover { filter: brightness(1.2); transform: translateY(-1px); }
+  .gacha-result {
+    text-align: center; padding: 8px; background: var(--bg3);
+    border: 1px solid var(--border); border-radius: 4px; margin-top: 6px;
+    font-family: 'Share Tech Mono', monospace; font-size: 12px;
+    min-height: 36px;
+  }
+
+  .pity-bar-wrap { margin-bottom: 8px; }
+  .pity-label { font-size: 10px; color: var(--text2); margin-bottom: 3px; font-family: 'Share Tech Mono', monospace; }
+  .pity-bar { height: 4px; background: var(--bg3); border-radius: 2px; border: 1px solid var(--border); }
+  .pity-fill { height: 100%; background: linear-gradient(90deg, var(--accent3), var(--gold)); border-radius: 2px; transition: width .4s; }
+
+  /* overlay modal */
+  #modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.7); z-index: 100;
+    align-items: center; justify-content: center;
+  }
+  #modal-overlay.open { display: flex; }
+  #modal-box {
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 8px; padding: 20px; min-width: 280px; max-width: 360px;
+    box-shadow: 0 0 40px rgba(0,212,255,.15);
+  }
+  #modal-box h3 { font-family: 'Orbitron', sans-serif; color: var(--accent); font-size: 14px; letter-spacing: 2px; margin-bottom: 12px; }
+  .modal-stat { font-family: 'Share Tech Mono', monospace; font-size: 12px; padding: 3px 0; color: var(--text2); }
+  .modal-stat span { color: var(--accent); }
+  .modal-btns { display: flex; gap: 8px; margin-top: 14px; }
+  .modal-btn {
+    flex: 1; font-family: 'Orbitron', sans-serif; font-size: 11px;
+    padding: 8px; border-radius: 4px; cursor: pointer; border: 1px solid var(--border);
+    background: var(--bg3); color: var(--text); transition: all .15s; letter-spacing: 1px;
+  }
+  .modal-btn.confirm { border-color: var(--accent); color: var(--accent); }
+  .modal-btn:hover { filter: brightness(1.2); }
+
+  /* toast */
+  #toast {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    background: var(--bg2); border: 1px solid var(--accent);
+    color: var(--accent); font-family: 'Share Tech Mono', monospace;
+    font-size: 12px; padding: 8px 20px; border-radius: 4px;
+    opacity: 0; transition: opacity .3s; z-index: 200; pointer-events: none;
+    white-space: nowrap;
+  }
+  #toast.show { opacity: 1; }
+
+  /* game over */
+  #gameover {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,.85); z-index: 300;
+    align-items: center; justify-content: center; flex-direction: column;
+    gap: 16px;
+  }
+  #gameover.open { display: flex; }
+  #gameover h2 { font-family: 'Orbitron', sans-serif; font-size: 36px; color: var(--red); text-shadow: 0 0 30px var(--red); }
+  #gameover p { font-family: 'Share Tech Mono', monospace; color: var(--text2); font-size: 14px; }
+  #gameover button {
+    font-family: 'Orbitron', sans-serif; font-size: 14px;
+    background: var(--accent2); color: #000; border: none;
+    padding: 12px 30px; border-radius: 4px; cursor: pointer; font-weight: 700; letter-spacing: 2px;
   }
 </style>
 </head>
-
 <body>
 
-<h1>🐣 Simulator X</h1>
+<!-- HUD -->
+<div id="hud">
+  <div class="title">WUWA DEFENSE</div>
+  <div class="hud-stat coins"><span class="lbl">COINS</span><span class="val" id="hud-coins">50</span></div>
+  <div class="hud-stat kills"><span class="lbl">KILLS</span><span class="val" id="hud-kills">0</span></div>
+  <div class="hud-stat wave"><span class="lbl">WAVE</span><span class="val" id="hud-wave">0</span></div>
+  <div class="hud-stat hp"><span class="lbl">BASE HP</span><span class="val" id="hud-hp">20</span></div>
+  <div id="tab-btns">
+    <button class="tab-btn active" onclick="switchTab('deploy')">DEPLOY</button>
+    <button class="tab-btn" onclick="switchTab('stats')">STATS</button>
+    <button class="tab-btn" onclick="switchTab('store')">STORE</button>
+  </div>
+  <button id="btn-wave" onclick="startWave()">▶ START WAVE</button>
+</div>
 
-<p>Coins: <span id="coins">0</span></p>
-<p>Rebirths: <span id="rebirths">0</span></p>
-<p>Power: <span id="power">1</span></p>
+<!-- MAIN -->
+<div id="main">
+  <!-- GRID -->
+  <div id="grid-wrap">
+    <div id="game-grid"></div>
+  </div>
 
-<button id="clickBtn" onclick="clickCoins()">CLICK</button>
+  <!-- RIGHT PANEL -->
+  <div id="right-panel">
 
-<h2>🥚 Eggs</h2>
-<button onclick="selectEgg(0)">Basic (10)</button>
-<button onclick="selectEgg(1)">Forest (50)</button>
-<button onclick="selectEgg(2)">Mythic (200)</button>
-<button onclick="selectEgg(3)">💎 Diamond (500)</button>
-<button onclick="selectEgg(4)">🐣 Easter Egg (300)</button>
-<button onclick="selectEgg(5)">🥚 Golden Easter (800)</button>
+    <!-- DEPLOY TAB -->
+    <div class="panel-tab active" id="tab-deploy">
+      <div class="panel-section">
+        <div class="section-title">SELECT UNIT · CLICK GRID TO DEPLOY</div>
+        <div id="deploy-slots"></div>
+        <div style="padding:4px 10px 0; font-size:10px; color:var(--text2);">
+          Deploy cost = <span style="color:var(--gold);">COINS</span> &nbsp;|&nbsp; Kill rewards = <span style="color:var(--green);">MARKS</span> (store currency)
+        </div>
+      </div>
+      <div style="padding:10px 12px; overflow-y:auto; flex:1;">
+        <div class="section-title">SELECTED UNIT INFO</div>
+        <div id="deploy-info" style="font-family:'Share Tech Mono',monospace; font-size:11px; color:var(--text2); line-height:1.8;"></div>
+      </div>
+    </div>
 
-<p>Selected: <span id="currentEgg">Basic Egg</span></p>
+    <!-- STATS TAB -->
+    <div class="panel-tab" id="tab-stats">
+      <div class="deployable-select" id="stat-select-btns"></div>
+      <div id="stats-scroll"></div>
+      <div class="reroll-section">
+        <div class="section-title">REROLL SUBSTATS</div>
+        <div id="lock-rows"></div>
+        <button class="reroll-btn" onclick="doReroll()">REROLL · COST: <span class="cost" id="reroll-cost">100</span> MARKS</button>
+        <div style="font-size:9px;color:var(--text2);">Locked stats won't be changed. Cost increases each reroll.</div>
+      </div>
+    </div>
 
-<button onclick="hatch(1)">Hatch</button>
-<button onclick="hatch(3)">3x Hatch</button>
+    <!-- STORE TAB -->
+    <div class="panel-tab" id="tab-store">
+      <div id="store-scroll">
+        <div class="store-section-title">WEAPON GACHA · CURRENCY: MARKS</div>
+        <div class="pity-bar-wrap">
+          <div class="pity-label">5★ PITY: <span id="pity-label">0/80</span></div>
+          <div class="pity-bar"><div class="pity-fill" id="pity-fill" style="width:0%"></div></div>
+        </div>
+        <button class="gacha-btn single" onclick="doGacha(1)">SINGLE PULL · 160 MARKS</button>
+        <button class="gacha-btn ten" onclick="doGacha(10)">10x PULL · 1600 MARKS · (guaranteed 4★)</button>
+        <div class="gacha-result" id="gacha-result">— Pull results will appear here —</div>
 
-<h2>🛒 Shop</h2>
-<button onclick="buyAutoClick()">Auto Click (200)</button>
-<button onclick="buyPowerBoost()">+1 Base Power (150)</button>
+        <div class="store-section-title" style="margin-top:12px;">UNIT UPGRADES</div>
+        <div id="upgrade-list"></div>
 
-<h2>♻️ Rebirth</h2>
-<button onclick="rebirth()">Rebirth (10,000 coins)</button>
+        <div class="store-section-title">UNLOCK SLOTS</div>
+        <div id="slot-unlock-list"></div>
+      </div>
+    </div>
 
-<h2>⚔️ Equipped (Max 2)</h2>
-<div id="equipped"></div>
+  </div>
+</div>
 
-<h2>🎒 Inventory</h2>
-<div id="inventory"></div>
+<!-- MODAL -->
+<div id="modal-overlay">
+  <div id="modal-box">
+    <h3 id="modal-title">UNIT INFO</h3>
+    <div id="modal-body"></div>
+    <div class="modal-btns" id="modal-btns"></div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div id="toast"></div>
+
+<!-- GAME OVER -->
+<div id="gameover">
+  <h2>⚡ SIGNAL LOST ⚡</h2>
+  <p id="go-stats"></p>
+  <button onclick="resetGame()">RESTART</button>
+</div>
 
 <script>
-let coins = 0;
-let rebirths = 0;
-let basePower = 1;
+// ─────────────────────────────────────────────
+//  CONSTANTS & DATA
+// ─────────────────────────────────────────────
+const ROWS = 5, COLS = 9;
+const DEPLOY_COLS = [0,1,2,3,4]; // player can deploy here (cols 0-4)
+const ENTER_COL = 8; // enemies enter from right
 
-let inventory = [];
-let equipped = [];
-let maxEquip = 2;
+const STAT_TABLE = {
+  HP:      [320,360,390,430,470,510,540,580],
+  'DEF%':  [8.1,9.0,10.0,10.9,11.8,12.8,13.8,14.7],
+  'ATK%':  [6.4,7.1,7.9,8.6,9.4,10.1,10.9,11.6],
+  'HP%':   [6.4,7.1,7.9,8.6,9.4,10.1,10.9,11.6],
+  'Heavy DMG%': [6.4,7.1,7.9,8.6,9.4,10.1,10.9,11.6],
+  'Skill DMG%': [6.4,7.1,7.9,8.6,9.4,10.1,10.9,11.6],
+  'Basic DMG%': [6.4,7.1,7.9,8.6,9.4,10.1,10.9,11.6],
+  'Crit Rate': [6.3,6.9,7.5,8.1,8.7,9.3,9.9,10.5],
+  'Crit DMG':  [12.6,13.8,15.0,16.2,17.4,18.6,19.8,21.0],
+};
+const SUBSTAT_KEYS = Object.keys(STAT_TABLE);
+const ROLL_CHANCES = [7.23,7.55,19.73,25.05,17.81,14.92,6.17,2.84]; // for normal substats
+const CRIT_RATE_CHANCES = [22.58,22.05,23.97,9.02,7.24,7.72,3.74,3.69];
+const CRIT_DMG_CHANCES  = [22.58,22.05,23.97,9.02,7.24,7.72,3.74,3.69];
 
-let currentEgg = 0;
-let autoClick = false;
-
-// EGGS (MORE + EVENT)
-const eggs = [
-{
-  name: "Basic Egg",
-  cost: 10,
-  pets: [
-    {emoji:"🐶", rarity:"common", chance:50, power:1},
-    {emoji:"🐱", rarity:"common", chance:40, power:1},
-    {emoji:"🐉", rarity:"legendary", chance:3, power:8},
-    {emoji:"👑", rarity:"secret", chance:0.2, power:50}
-  ]
-},
-{
-  name: "Forest Egg",
-  cost: 50,
-  pets: [
-    {emoji:"🦊", rarity:"common", chance:50, power:2},
-    {emoji:"🐻", rarity:"rare", chance:30, power:3},
-    {emoji:"🌳", rarity:"legendary", chance:5, power:12}
-  ]
-},
-{
-  name: "Mythic Egg",
-  cost: 200,
-  pets: [
-    {emoji:"😈", rarity:"epic", chance:40, power:8},
-    {emoji:"⚡", rarity:"mythic", chance:5, power:40},
-    {emoji:"💎", rarity:"secret", chance:0.5, power:120}
-  ]
-},
-{
-  name: "Diamond Egg",
-  cost: 500,
-  pets: [
-    {emoji:"💠", rarity:"legendary", chance:30, power:20},
-    {emoji:"💎", rarity:"mythic", chance:10, power:60},
-    {emoji:"👑", rarity:"secret", chance:1, power:150}
-  ]
-},
-{
-  name: "Easter Egg 🐣",
-  cost: 300,
-  pets: [
-    {emoji:"🐤", rarity:"common", chance:50, power:5},
-    {emoji:"🥚", rarity:"rare", chance:30, power:10},
-    {emoji:"🐰", rarity:"epic", chance:15, power:25},
-    {emoji:"🌸", rarity:"legendary", chance:5, power:50}
-  ]
-},
-{
-  name: "Golden Easter 🥚",
-  cost: 800,
-  pets: [
-    {emoji:"🐥", rarity:"rare", chance:40, power:15},
-    {emoji:"✨", rarity:"epic", chance:25, power:35},
-    {emoji:"🌈", rarity:"mythic", chance:10, power:80},
-    {emoji:"👑", rarity:"secret", chance:1, power:200}
-  ]
-}
+// Deployable templates
+const DEPLOY_TEMPLATES = [
+  { id:'d0', name:'Rover', icon:'🗡️', cost:30, atk:120, hp:800, def:80, atkType:'basic', atkSpeed:1.2, range:2 },
+  { id:'d1', name:'Jinhsi', icon:'⚡', cost:50, atk:200, hp:600, def:60, atkType:'skill', atkSpeed:0.8, range:3 },
+  { id:'d2', name:'Camellya', icon:'🌸', cost:40, atk:160, hp:700, def:70, atkType:'heavy', atkSpeed:1.0, range:2 },
+  { id:'d3', name:'Changli', icon:'🔥', cost:45, atk:180, hp:650, def:65, atkType:'skill', atkSpeed:0.9, range:3 },
+  { id:'d4', name:'Carlotta', icon:'❄️', cost:55, atk:220, hp:550, def:55, atkType:'basic', atkSpeed:0.7, range:4 },
+  { id:'d5', name:'Shorekeeper',icon:'💙',cost:60, atk:150, hp:900, def:100,atkType:'heavy', atkSpeed:1.0, range:2 },
+  { id:'d6', name:'Xiangli Yao',icon:'⚙️',cost:50, atk:190, hp:680, def:75, atkType:'skill', atkSpeed:0.85,range:3 },
+  { id:'d7', name:'Zhezhi',     icon:'🎨', cost:65, atk:240, hp:580, def:50, atkType:'heavy', atkSpeed:0.6, range:4 },
 ];
 
-// POWER
-function getPower() {
-  let total = basePower + rebirths * 2;
-  equipped.forEach(p => total += p.power);
-  return total;
+// Weapon templates
+const WEAPONS = [
+  { id:'w5a', name:'Emerald of Genesis', stars:5, icon:'💎', stat:'ATK%+18', bonus:0.18 },
+  { id:'w5b', name:'Lustrous Razor',     stars:5, icon:'⚔️', stat:'ATK%+16 +CritR 8%', bonus:0.16 },
+  { id:'w4a', name:'Augment',            stars:4, icon:'🔵', stat:'ATK%+12', bonus:0.12 },
+  { id:'w4b', name:'Variation',          stars:4, icon:'🟣', stat:'Skill DMG+12%', bonus:0.12 },
+  { id:'w4c', name:'Ages of Harvest',    stars:4, icon:'🌾', stat:'Heavy DMG+12%', bonus:0.12 },
+  { id:'w3a', name:'Broadblade#41',      stars:3, icon:'🔩', stat:'ATK%+8', bonus:0.08 },
+  { id:'w3b', name:'Sword#18',           stars:3, icon:'🗡️', stat:'ATK%+7', bonus:0.07 },
+  { id:'w3c', name:'Pistols#26',         stars:3, icon:'🔫', stat:'Basic DMG+9%', bonus:0.09 },
+];
+const GACHA_RATE = { 5:0.006, 4:0.051, 3:0.943 };
+
+// Enemy templates
+const ENEMY_TEMPLATES = [
+  { name:'Tacet Chord', icon:'👾', hp:200, def:{basic:20,skill:15,heavy:10}, spd:1, reward:5  },
+  { name:'Remnant',     icon:'💀', hp:400, def:{basic:40,skill:20,heavy:30}, spd:0.8, reward:8  },
+  { name:'Calamity',    icon:'🔴', hp:800, def:{basic:60,skill:50,heavy:40}, spd:0.6, reward:15 },
+  { name:'Override',    icon:'🟠', hp:1500,def:{basic:100,skill:80,heavy:60}, spd:0.5, reward:25 },
+];
+
+// ─────────────────────────────────────────────
+//  STATE
+// ─────────────────────────────────────────────
+let state = {
+  coins: 50,
+  marks: 0,        // store currency (from kills)
+  kills: 0,
+  wave: 0,
+  baseHP: 20,
+  running: false,
+  selectedSlot: 0,
+  slotsUnlocked: 4,
+  pity: 0,         // gacha pity counter
+  pity4: 0,
+  // deployables on grid: { [row_col]: deployableInstance }
+  grid: {},
+  // deployable instances (with stats)
+  deployables: DEPLOY_TEMPLATES.map((t,i) => makeDeployable(t, i)),
+  // active enemies on grid
+  enemies: [],
+  // owned weapons
+  ownedWeapons: [],
+  // equipped weapon per deployable id
+  equippedWeapon: {},
+  // reroll cost per deployable
+  rerollCost: {},
+  // locked substats per deployable: { [id]: Set of stat names }
+  lockedStats: {},
+  // viewing stats of which deployable
+  statView: 0,
+  // upgrade levels
+  upgradeLvl: {},
+  activeTab: 'deploy',
+  // wave interval id
+  waveIntervalId: null,
+  pendingEnemies: [],
+};
+
+function makeDeployable(tmpl, idx) {
+  const baseAtk = tmpl.atk;
+  const baseHP  = tmpl.hp;
+  // roll 4 random substats
+  const pool = [...SUBSTAT_KEYS];
+  const rolled = [];
+  for(let i=0;i<4;i++){
+    const ri = Math.floor(Math.random()*pool.length);
+    rolled.push({ name: pool[ri], val: rollStat(pool[ri]) });
+    pool.splice(ri,1);
+  }
+  return {
+    ...tmpl,
+    idx,
+    baseAtk,
+    baseHP,
+    level: 1,
+    substats: rolled,
+    weapon: null,
+  };
 }
 
-// CLICK
-function clickCoins() {
-  coins += getPower();
-  updateUI();
+function rollStat(name) {
+  const table = STAT_TABLE[name];
+  let chances = name==='Crit Rate' ? CRIT_RATE_CHANCES : name==='Crit DMG' ? CRIT_DMG_CHANCES : ROLL_CHANCES;
+  const r = Math.random()*100;
+  let cum=0;
+  for(let i=0;i<chances.length;i++){
+    cum+=chances[i];
+    if(r<=cum) return table[i];
+  }
+  return table[table.length-1];
 }
 
-// HATCH
-function hatch(amount) {
-  const egg = eggs[currentEgg];
-  let cost = egg.cost * amount;
+// ─────────────────────────────────────────────
+//  COMPUTED STATS
+// ─────────────────────────────────────────────
+function getStats(d) {
+  const lvlMul = 1 + (state.upgradeLvl[d.id]||0)*0.01; // +1% per level
+  let atk = d.baseAtk * lvlMul;
+  let hp  = d.baseHP  * lvlMul;
+  let def = d.def * lvlMul;
+  let critR = 5, critDMG = 150;
+  let atkPct = 0, hpPct = 0, defPct = 0;
+  let basicBonus=0, skillBonus=0, heavyBonus=0;
 
-  if (coins < cost) return alert("Not enough coins!");
-
-  coins -= cost;
-
-  for (let i = 0; i < amount; i++) {
-    inventory.push(getPet(egg));
+  for(const s of d.substats){
+    if(s.name==='HP')      hp += s.val;
+    if(s.name==='DEF%')    defPct += s.val;
+    if(s.name==='ATK%')    atkPct += s.val;
+    if(s.name==='HP%')     hpPct  += s.val;
+    if(s.name==='Crit Rate') critR += s.val;
+    if(s.name==='Crit DMG')  critDMG += s.val;
+    if(s.name==='Basic DMG%') basicBonus += s.val;
+    if(s.name==='Skill DMG%') skillBonus += s.val;
+    if(s.name==='Heavy DMG%') heavyBonus += s.val;
   }
 
-  updateUI();
+  // weapon bonus
+  const wid = state.equippedWeapon[d.id];
+  if(wid){
+    const w = WEAPONS.find(x=>x.id===wid);
+    if(w) atkPct += w.bonus*100;
+  }
+
+  atk *= (1 + atkPct/100);
+  hp  *= (1 + hpPct/100);
+  def *= (1 + defPct/100);
+
+  let dmgBonus = 0;
+  if(d.atkType==='basic') dmgBonus = basicBonus;
+  if(d.atkType==='skill') dmgBonus = skillBonus;
+  if(d.atkType==='heavy') dmgBonus = heavyBonus;
+
+  return { atk:Math.round(atk), hp:Math.round(hp), def:Math.round(def),
+           critR:Math.min(critR,100).toFixed(1), critDMG:critDMG.toFixed(1),
+           dmgBonus };
 }
 
-// RNG
-function getPet(egg) {
-  let total = egg.pets.reduce((s,p)=>s+p.chance,0);
-  let rand = Math.random()*total;
+function calcDmg(d) {
+  const st = getStats(d);
+  const base = st.atk * (1 + st.dmgBonus/100);
+  const isCrit = Math.random()*100 < parseFloat(st.critR);
+  const mul = isCrit ? (1 + parseFloat(st.critDMG)/100) : 1;
+  return { dmg: Math.round(base * mul), crit: isCrit };
+}
 
-  for (let p of egg.pets) {
-    rand -= p.chance;
-    if (rand <= 0) return {...p};
+// ─────────────────────────────────────────────
+//  GRID RENDERING
+// ─────────────────────────────────────────────
+function buildGrid() {
+  const grid = document.getElementById('game-grid');
+  grid.innerHTML = '';
+  for(let r=0;r<ROWS;r++){
+    for(let c=0;c<COLS;c++){
+      const cell = document.createElement('div');
+      cell.className = 'cell' + (c>=5?' enemy-col':'');
+      cell.id = `cell-${r}-${c}`;
+      cell.dataset.r = r; cell.dataset.c = c;
+      if(c<5) cell.onclick = ()=>handleCellClick(r,c);
+      grid.appendChild(cell);
+    }
+    // lane arrow
+    const arr = document.createElement('div');
+    arr.className='lane-arrow'; arr.textContent='←';
+    grid.appendChild(arr);
   }
 }
 
-// SELECT
-function selectEgg(i) {
-  currentEgg = i;
-  document.getElementById("currentEgg").textContent = eggs[i].name;
+function renderGrid() {
+  // clear deploy tokens
+  document.querySelectorAll('.deploy-token').forEach(e=>e.remove());
+  for(const key in state.grid){
+    const [r,c] = key.split('_').map(Number);
+    const inst = state.grid[key];
+    const d = state.deployables.find(x=>x.id===inst.id);
+    const cell = document.getElementById(`cell-${r}-${c}`);
+    if(!cell||!d) continue;
+    cell.classList.add('has-deployable');
+    const tok = document.createElement('div');
+    tok.className='deploy-token'; tok.title=d.name;
+    const st = getStats(d);
+    tok.innerHTML = `<span>${d.icon}</span><span class="d-name">${d.name}</span>
+      <div class="d-hp-bar"><div class="d-hp-fill" id="hp-fill-${key}" style="width:${(inst.hp/st.hp*100)}%"></div></div>`;
+    tok.onclick = (e)=>{ e.stopPropagation(); openDeployModal(r,c,key,d,inst); };
+    cell.appendChild(tok);
+  }
 }
 
-// INVENTORY
-function renderInventory() {
-  let inv = document.getElementById("inventory");
-  inv.innerHTML = "";
+// ─────────────────────────────────────────────
+//  DEPLOY SLOTS UI
+// ─────────────────────────────────────────────
+function renderDeploySlots() {
+  const container = document.getElementById('deploy-slots');
+  container.innerHTML='';
+  DEPLOY_TEMPLATES.forEach((tmpl,i)=>{
+    const locked = i >= state.slotsUnlocked;
+    const d = state.deployables[i];
+    const div = document.createElement('div');
+    div.className = 'slot-card' + (state.selectedSlot===i?' selected':'') + (locked?' locked':'');
+    div.innerHTML = `<span class="s-icon">${tmpl.icon}</span>
+      <span class="s-name">${tmpl.name}</span>
+      <span class="s-cost">🪙${tmpl.cost}</span>
+      ${locked?'<span class="s-lock">🔒</span>':''}`;
+    if(!locked) div.onclick = ()=>selectSlot(i);
+    container.appendChild(div);
+  });
+  updateDeployInfo();
+}
 
-  inventory.forEach((p,i)=>{
-    let d = document.createElement("div");
-    d.className = "petItem "+p.rarity;
-    d.innerHTML = `${p.emoji}<div style="font-size:12px;">+${p.power}</div>`;
-    d.onclick=()=>equipPet(i);
-    inv.appendChild(d);
+function selectSlot(i) {
+  state.selectedSlot = i;
+  renderDeploySlots();
+}
+
+function updateDeployInfo() {
+  const d = state.deployables[state.selectedSlot];
+  const st = getStats(d);
+  const wid = state.equippedWeapon[d.id];
+  const w = WEAPONS.find(x=>x.id===wid);
+  document.getElementById('deploy-info').innerHTML = `
+    <b style="color:var(--text)">${d.icon} ${d.name}</b><br>
+    ATK: <span style="color:var(--accent2)">${st.atk}</span> &nbsp;|&nbsp; HP: <span style="color:var(--green)">${st.hp}</span><br>
+    DEF: ${st.def} &nbsp;|&nbsp; Type: <span style="color:var(--gold)">${d.atkType.toUpperCase()}</span><br>
+    Crit Rate: <span style="color:var(--gold)">${st.critR}%</span> &nbsp;|&nbsp; Crit DMG: <span style="color:var(--gold)">${st.critDMG}%</span><br>
+    ${d.atkType} DMG Bonus: <span style="color:var(--accent3)">+${st.dmgBonus.toFixed(1)}%</span><br>
+    Range: ${d.range} cols &nbsp;|&nbsp; Speed: ${d.atkSpeed}/s<br>
+    Weapon: <span style="color:var(--gold)">${w?w.name:'None'}</span><br>
+    Level: <span style="color:var(--accent)">${d.level}</span>
+    (Lv bonus: +${state.upgradeLvl[d.id]||0}%)
+  `;
+}
+
+// ─────────────────────────────────────────────
+//  CELL CLICK → DEPLOY
+// ─────────────────────────────────────────────
+function handleCellClick(r,c) {
+  if(state.running && !canDeployDuringWave()) return;
+  const key = `${r}_${c}`;
+  if(state.grid[key]) return; // already deployed
+  const i = state.selectedSlot;
+  if(i >= state.slotsUnlocked){ toast('Slot locked! Unlock in Store.'); return; }
+  const tmpl = DEPLOY_TEMPLATES[i];
+  if(state.coins < tmpl.cost){ toast('Not enough Coins!'); return; }
+  state.coins -= tmpl.cost;
+  const d = state.deployables[i];
+  const st = getStats(d);
+  state.grid[key] = { id:d.id, row:r, col:c, hp:st.hp, maxHp:st.hp, lastAtk:0 };
+  updateHUD();
+  renderGrid();
+}
+
+function canDeployDuringWave() { return true; } // allow mid-wave deploy
+
+// ─────────────────────────────────────────────
+//  DEPLOY MODAL (click on placed unit)
+// ─────────────────────────────────────────────
+function openDeployModal(r,c,key,d,inst) {
+  const st = getStats(d);
+  const wid = state.equippedWeapon[d.id];
+  const w = WEAPONS.find(x=>x.id===wid);
+  document.getElementById('modal-title').textContent = `${d.icon} ${d.name}`;
+  document.getElementById('modal-body').innerHTML = `
+    <div class="modal-stat">HP: <span>${inst.hp}/${st.hp}</span></div>
+    <div class="modal-stat">ATK: <span>${st.atk}</span> &nbsp; DEF: <span>${st.def}</span></div>
+    <div class="modal-stat">Crit Rate: <span>${st.critR}%</span> / Crit DMG: <span>${st.critDMG}%</span></div>
+    <div class="modal-stat">Type: <span>${d.atkType}</span> &nbsp; Range: <span>${d.range}</span></div>
+    <div class="modal-stat">Weapon: <span>${w?w.name:'None'}</span></div>
+    <div class="modal-stat" style="margin-top:6px;color:var(--red)">Remove to get back 15 Coins.</div>
+  `;
+  document.getElementById('modal-btns').innerHTML = '';
+  const btnClose = document.createElement('button');
+  btnClose.className='modal-btn'; btnClose.textContent='CLOSE';
+  btnClose.onclick=closeModal;
+  const btnRemove = document.createElement('button');
+  btnRemove.className='modal-btn'; btnRemove.textContent='REMOVE';
+  btnRemove.onclick=()=>{ removeDeployable(r,c,key); closeModal(); };
+  document.getElementById('modal-btns').appendChild(btnClose);
+  document.getElementById('modal-btns').appendChild(btnRemove);
+  document.getElementById('modal-overlay').classList.add('open');
+}
+
+function removeDeployable(r,c,key){
+  delete state.grid[key];
+  state.coins += 15;
+  renderGrid(); updateHUD();
+}
+
+function closeModal(){ document.getElementById('modal-overlay').classList.remove('open'); }
+
+// ─────────────────────────────────────────────
+//  STATS TAB
+// ─────────────────────────────────────────────
+function renderStatsTab() {
+  const btns = document.getElementById('stat-select-btns');
+  btns.innerHTML='';
+  state.deployables.forEach((d,i)=>{
+    if(i>=state.slotsUnlocked) return;
+    const b=document.createElement('button');
+    b.className='d-select-btn'+(state.statView===i?' active':'');
+    b.textContent=d.name; b.onclick=()=>{ state.statView=i; renderStatsTab(); };
+    btns.appendChild(b);
+  });
+
+  const d = state.deployables[state.statView];
+  const st = getStats(d);
+  const scroll = document.getElementById('stats-scroll');
+  scroll.innerHTML = `
+    <div class="stat-row"><span class="s-name">── BASE ──</span></div>
+    <div class="stat-row"><span class="s-name">ATK</span><span class="s-val atk">${st.atk}</span></div>
+    <div class="stat-row"><span class="s-name">HP</span><span class="s-val">${st.hp}</span></div>
+    <div class="stat-row"><span class="s-name">DEF</span><span class="s-val">${st.def}</span></div>
+    <div class="stat-row"><span class="s-name">Crit Rate</span><span class="s-val crit">${st.critR}%</span></div>
+    <div class="stat-row"><span class="s-name">Crit DMG</span><span class="s-val crit">${st.critDMG}%</span></div>
+    <div class="stat-row"><span class="s-name">${d.atkType} DMG Bonus</span><span class="s-val">${st.dmgBonus.toFixed(1)}%</span></div>
+    <div class="stat-row"><span class="s-name">── SUBSTATS ──</span></div>
+    ${d.substats.map((s,si)=>`
+      <div class="stat-row"><span class="s-name">${s.name}</span><span class="s-val">${s.val}${s.name.includes('%')||s.name==='Crit Rate'||s.name==='Crit DMG'?'%':''}</span></div>
+    `).join('')}
+  `;
+
+  // lock rows
+  const lockDiv = document.getElementById('lock-rows');
+  lockDiv.innerHTML='';
+  if(!state.lockedStats[d.id]) state.lockedStats[d.id]=new Set();
+  d.substats.forEach((s,si)=>{
+    const row=document.createElement('div');
+    row.className='lock-stat-row';
+    const chk=document.createElement('input'); chk.type='checkbox';
+    chk.checked=state.lockedStats[d.id].has(s.name);
+    chk.onchange=()=>{
+      if(chk.checked) state.lockedStats[d.id].add(s.name);
+      else state.lockedStats[d.id].delete(s.name);
+    };
+    row.innerHTML=`<span>${s.name}: ${s.val}${s.name.includes('%')||s.name==='Crit Rate'||s.name==='Crit DMG'?'%':''}</span>`;
+    row.prepend(chk);
+    lockDiv.appendChild(row);
+  });
+
+  const rc = state.rerollCost[d.id]||100;
+  document.getElementById('reroll-cost').textContent=rc;
+}
+
+function doReroll(){
+  const d = state.deployables[state.statView];
+  const cost = state.rerollCost[d.id]||100;
+  if(state.marks < cost){ toast('Not enough Marks!'); return; }
+  state.marks -= cost;
+  state.rerollCost[d.id] = (cost + 50);
+  const locked = state.lockedStats[d.id]||new Set();
+  const pool = SUBSTAT_KEYS.filter(k=>![...locked].includes(k));
+  d.substats = d.substats.map(s=>{
+    if(locked.has(s.name)) return s;
+    // pick random from pool not already in locked or other substats
+    const available = pool.filter(k=>!d.substats.some(x=>x.name===k&&!locked.has(k))||k===s.name);
+    const newName = available[Math.floor(Math.random()*available.length)]||s.name;
+    return { name:newName, val: rollStat(newName) };
+  });
+  toast('Substats rerolled!');
+  renderStatsTab();
+  updateHUD();
+}
+
+// ─────────────────────────────────────────────
+//  STORE TAB
+// ─────────────────────────────────────────────
+function renderStoreTab(){
+  // Upgrades
+  const ul = document.getElementById('upgrade-list');
+  ul.innerHTML='';
+  state.deployables.forEach((d,i)=>{
+    if(i>=state.slotsUnlocked) return;
+    const lvl = state.upgradeLvl[d.id]||0;
+    if(lvl>=100) return;
+    const cost = (lvl+1)*10;
+    const card = document.createElement('div');
+    card.className='upgrade-card';
+    card.innerHTML=`<div class="u-info">
+      <div class="u-name">${d.icon} ${d.name}</div>
+      <div class="u-desc">Lv ${lvl} → ${lvl+1} (+1% all stats)</div>
+    </div>
+    <button class="u-btn" onclick="buyUpgrade('${d.id}',${cost})">Lv Up<br><span style="color:var(--gold)">${cost}M</span></button>`;
+    ul.appendChild(card);
+  });
+
+  // Slot unlocks
+  const sl = document.getElementById('slot-unlock-list');
+  sl.innerHTML='';
+  for(let i=4;i<8;i++){
+    if(i<state.slotsUnlocked) continue;
+    const cost = (i-3)*200;
+    const tmpl = DEPLOY_TEMPLATES[i];
+    const card = document.createElement('div');
+    card.className='upgrade-card';
+    card.innerHTML=`<div class="u-info">
+      <div class="u-name">${tmpl.icon} Slot ${i+1}: ${tmpl.name}</div>
+      <div class="u-desc">Unlock new deployable slot</div>
+    </div>
+    <button class="u-btn" onclick="buySlot(${i},${cost})">Unlock<br><span style="color:var(--gold)">${cost}M</span></button>`;
+    sl.appendChild(card);
+  }
+}
+
+function buyUpgrade(id, cost){
+  if(state.marks<cost){ toast('Not enough Marks!'); return; }
+  state.marks-=cost;
+  state.upgradeLvl[id]=(state.upgradeLvl[id]||0)+1;
+  toast(`Upgraded! Level ${state.upgradeLvl[id]}`);
+  updateHUD(); renderStoreTab();
+}
+function buySlot(idx, cost){
+  if(state.marks<cost){ toast('Not enough Marks!'); return; }
+  if(idx!==state.slotsUnlocked){ toast('Unlock slots in order!'); return; }
+  state.marks-=cost;
+  state.slotsUnlocked++;
+  toast(`Slot ${idx+1} unlocked!`);
+  updateHUD(); renderDeploySlots(); renderStoreTab();
+}
+
+// ─────────────────────────────────────────────
+//  GACHA
+// ─────────────────────────────────────────────
+function doGacha(n){
+  const cost = n*160;
+  if(state.marks<cost){ toast('Not enough Marks!'); return; }
+  state.marks-=cost;
+  const results=[];
+  for(let i=0;i<n;i++){
+    results.push(singlePull());
+  }
+  // guarantee 4★ on 10x
+  if(n===10 && !results.some(r=>r.stars>=4)){
+    const idx=Math.floor(Math.random()*results.length);
+    const pool4=WEAPONS.filter(w=>w.stars===4);
+    results[idx]=pool4[Math.floor(Math.random()*pool4.length)];
+  }
+  // add to owned
+  results.forEach(w=>{
+    if(!state.ownedWeapons.find(o=>o.id===w.id))
+      state.ownedWeapons.push({...w});
+  });
+  // display
+  const resDiv=document.getElementById('gacha-result');
+  resDiv.innerHTML = results.map(w=>`<span class="${w.stars===5?'w5':w.stars===4?'w4':'w3'}">${w.icon} ${w.name} ${'★'.repeat(w.stars)}</span>`).join('<br>');
+  updateHUD();
+  renderStoreTab();
+  updatePity();
+}
+
+function singlePull(){
+  state.pity++; state.pity4++;
+  // hard pity at 80
+  if(state.pity>=80){
+    state.pity=0; state.pity4=0;
+    const pool5=WEAPONS.filter(w=>w.stars===5);
+    return pool5[Math.floor(Math.random()*pool5.length)];
+  }
+  if(state.pity4>=10){
+    state.pity4=0;
+    const pool4=WEAPONS.filter(w=>w.stars===4);
+    return pool4[Math.floor(Math.random()*pool4.length)];
+  }
+  const r=Math.random();
+  if(r<GACHA_RATE[5]){ state.pity=0; state.pity4=0; return WEAPONS.filter(w=>w.stars===5)[Math.floor(Math.random()*WEAPONS.filter(w=>w.stars===5).length)]; }
+  if(r<GACHA_RATE[5]+GACHA_RATE[4]){ state.pity4=0; return WEAPONS.filter(w=>w.stars===4)[Math.floor(Math.random()*WEAPONS.filter(w=>w.stars===4).length)]; }
+  return WEAPONS.filter(w=>w.stars===3)[Math.floor(Math.random()*WEAPONS.filter(w=>w.stars===3).length)];
+}
+
+function updatePity(){
+  const p=state.pity;
+  document.getElementById('pity-label').textContent=`${p}/80`;
+  document.getElementById('pity-fill').style.width=`${p/80*100}%`;
+}
+
+// ─────────────────────────────────────────────
+//  WAVE SYSTEM
+// ─────────────────────────────────────────────
+function startWave(){
+  if(state.running) return;
+  state.wave++;
+  state.running=true;
+  document.getElementById('btn-wave').disabled=true;
+  updateHUD();
+  toast(`Wave ${state.wave} incoming!`);
+
+  // build enemy list for this wave
+  const count = 5 + state.wave*3;
+  state.pendingEnemies=[];
+  for(let i=0;i<count;i++){
+    const tier = Math.min(Math.floor(state.wave/3), ENEMY_TEMPLATES.length-1);
+    const t = ENEMY_TEMPLATES[Math.floor(Math.random()*(tier+1))];
+    const hpScale = 1 + state.wave*0.15;
+    state.pendingEnemies.push({
+      ...t,
+      hp: Math.round(t.hp*hpScale), maxHp: Math.round(t.hp*hpScale),
+      id: `e${Date.now()}_${i}`,
+      row: Math.floor(Math.random()*ROWS),
+      x: COLS-1, // start at rightmost col
+      spawnDelay: i * (800/Math.min(state.wave,5)),
+    });
+  }
+
+  let spawned=0;
+  const spawnInterval=setInterval(()=>{
+    if(spawned>=state.pendingEnemies.length){ clearInterval(spawnInterval); return; }
+    const e=state.pendingEnemies[spawned];
+    spawnEnemy(e);
+    spawned++;
+  }, 600);
+
+  state.waveIntervalId=setInterval(()=>tickWave(), 200);
+}
+
+function spawnEnemy(e){
+  state.enemies.push({ ...e, pixelX: (COLS-1)*72, colPos: COLS-1 });
+  renderEnemies();
+}
+
+// main game tick
+function tickWave(){
+  if(!state.running) return;
+
+  // move enemies left
+  state.enemies.forEach(e=>{
+    e.pixelX -= e.spd * 3; // pixels per tick
+    e.colPos = e.pixelX/72;
+  });
+
+  // check if enemy reached col -1 (base)
+  const leakers = state.enemies.filter(e=>e.pixelX < 0);
+  leakers.forEach(e=>{
+    state.baseHP--;
+    removeEnemy(e.id);
+    updateHUD();
+    if(state.baseHP<=0){ gameOver(); return; }
+  });
+
+  // deployables attack
+  for(const key in state.grid){
+    const inst = state.grid[key];
+    const d = state.deployables.find(x=>x.id===inst.id);
+    if(!d) continue;
+    const now=Date.now();
+    if(now - inst.lastAtk < 1000/d.atkSpeed) continue;
+    // find enemy in range in same row or adjacent
+    const target = state.enemies.find(en=>{
+      const dist = inst.col - en.colPos;
+      return Math.abs(en.row - inst.row)<=0 && dist>=0 && dist<=d.range;
+    });
+    if(!target) continue;
+    inst.lastAtk = now;
+    const { dmg, crit } = calcDmg(d);
+    // apply enemy def reduction
+    const defKey = d.atkType; // 'basic','skill','heavy'
+    const defVal = target.def[defKey]||0;
+    const finalDmg = Math.max(1, dmg - defVal);
+    target.hp -= finalDmg;
+    showDmgText(inst.row, inst.col, finalDmg, crit);
+    if(target.hp<=0){
+      state.marks += target.reward;
+      state.kills++;
+      removeEnemy(target.id);
+      updateHUD();
+    }
+  }
+
+  // enemies attack deployables
+  state.enemies.forEach(en=>{
+    const col = Math.round(en.colPos);
+    const key = `${en.row}_${col}`;
+    if(state.grid[key]){
+      if(!en.lastAtk) en.lastAtk=0;
+      const now=Date.now();
+      if(now-en.lastAtk < 1200) return;
+      en.lastAtk=now;
+      const dmg = Math.round(20 + state.wave*5);
+      state.grid[key].hp -= dmg;
+      updateDeployHPBar(key);
+      if(state.grid[key].hp<=0){
+        toast(`${state.grid[key].id} was destroyed!`);
+        delete state.grid[key];
+        renderGrid();
+      }
+    }
+  });
+
+  renderEnemies();
+
+  // check wave clear
+  if(state.enemies.length===0 && state.pendingEnemies.length>0 &&
+     state.pendingEnemies.every((_,i)=>i<state.enemies.length)){
+    // still spawning
+  }
+  if(state.enemies.length===0 && !document.querySelector('.spawning')){
+    // try end wave after delay
+    setTimeout(()=>{
+      if(state.enemies.length===0 && state.running){
+        endWave();
+      }
+    }, 1200);
+  }
+}
+
+function endWave(){
+  clearInterval(state.waveIntervalId);
+  state.running=false;
+  state.pendingEnemies=[];
+  state.coins += 20 + state.wave*5; // coin reward per wave
+  document.getElementById('btn-wave').disabled=false;
+  updateHUD();
+  toast(`Wave ${state.wave} cleared! +${20+state.wave*5} Coins`);
+}
+
+function removeEnemy(id){
+  state.enemies = state.enemies.filter(e=>e.id!==id);
+  const el=document.getElementById(`enemy-${id}`);
+  if(el) el.remove();
+}
+
+function renderEnemies(){
+  // remove stale enemy elements
+  document.querySelectorAll('.enemy-token').forEach(el=>{
+    if(!state.enemies.find(e=>'enemy-'+e.id===el.id)) el.remove();
+  });
+  const gridEl = document.getElementById('game-grid');
+  state.enemies.forEach(e=>{
+    let el = document.getElementById(`enemy-${e.id}`);
+    if(!el){
+      el=document.createElement('div');
+      el.className='enemy-token';
+      el.id=`enemy-${e.id}`;
+      el.innerHTML=`${e.icon}<div class="e-hp-bar"><div class="e-hp-fill" id="ehp-${e.id}"></div></div>`;
+      gridEl.appendChild(el);
+    }
+    const rowPx = e.row * 72 + 13;
+    const colPx = e.pixelX + 13;
+    el.style.position='absolute';
+    el.style.top = rowPx+'px';
+    el.style.left = colPx+'px';
+    const hpEl=document.getElementById(`ehp-${e.id}`);
+    if(hpEl) hpEl.style.width=`${Math.max(0,e.hp/e.maxHp*100)}%`;
   });
 }
 
-// EQUIP
-function renderEquipped() {
-  let eq = document.getElementById("equipped");
-  eq.innerHTML="";
-
-  equipped.forEach((p,i)=>{
-    let d=document.createElement("div");
-    d.className="petItem "+p.rarity;
-    d.innerHTML=`${p.emoji}<div style="font-size:12px;color:lime;">+${p.power}</div>`;
-    d.onclick=()=>unequipPet(i);
-    eq.appendChild(d);
-  });
+function updateDeployHPBar(key){
+  const inst = state.grid[key];
+  if(!inst) return;
+  const d = state.deployables.find(x=>x.id===inst.id);
+  if(!d) return;
+  const st=getStats(d);
+  const fill=document.getElementById(`hp-fill-${key}`);
+  if(fill) fill.style.width=`${Math.max(0,inst.hp/st.hp*100)}%`;
 }
 
-function equipPet(i){
-  if(equipped.length>=2) return alert("Max 2!");
-  equipped.push(inventory[i]);
-  inventory.splice(i,1);
-  updateUI();
+function showDmgText(row,col,dmg,crit){
+  const gridEl=document.getElementById('game-grid');
+  const el=document.createElement('div');
+  el.className='dmg-text';
+  el.style.color=crit?'var(--gold)':'var(--accent)';
+  el.style.left=(col*72+20)+'px';
+  el.style.top=(row*72+10)+'px';
+  el.textContent=(crit?'★':'')+dmg;
+  gridEl.appendChild(el);
+  setTimeout(()=>el.remove(),700);
 }
 
-function unequipPet(i){
-  inventory.push(equipped[i]);
-  equipped.splice(i,1);
-  updateUI();
+// ─────────────────────────────────────────────
+//  HUD
+// ─────────────────────────────────────────────
+function updateHUD(){
+  document.getElementById('hud-coins').textContent=state.coins;
+  document.getElementById('hud-kills').textContent=state.kills;
+  document.getElementById('hud-wave').textContent=state.wave;
+  document.getElementById('hud-hp').textContent=state.baseHP;
+  document.getElementById('hud-coins').parentElement.querySelector('.lbl').textContent=`COINS`;
 }
 
-// SHOP
-function buyAutoClick(){
-  if(coins<200)return alert("Not enough!");
-  coins-=200;
-  autoClick=true;
+// ─────────────────────────────────────────────
+//  TABS
+// ─────────────────────────────────────────────
+function switchTab(tab){
+  state.activeTab=tab;
+  document.querySelectorAll('.panel-tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById(`tab-${tab}`).classList.add('active');
+  document.querySelectorAll('.tab-btn').forEach(b=>{ if(b.textContent.toLowerCase().includes(tab.slice(0,4))) b.classList.add('active'); });
+  if(tab==='stats') renderStatsTab();
+  if(tab==='store') renderStoreTab();
+  if(tab==='deploy') { renderDeploySlots(); }
 }
 
-function buyPowerBoost(){
-  if(coins<150)return alert("Not enough!");
-  coins-=150;
-  basePower+=1;
+// ─────────────────────────────────────────────
+//  TOAST
+// ─────────────────────────────────────────────
+let toastTimer;
+function toast(msg){
+  const el=document.getElementById('toast');
+  el.textContent=msg; el.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>el.classList.remove('show'),2000);
 }
 
-// REBIRTH
-function rebirth(){
-  if(coins<10000)return alert("Need 10k!");
-  coins=0;
-  inventory=[];
-  equipped=[];
-  rebirths++;
+// ─────────────────────────────────────────────
+//  GAME OVER
+// ─────────────────────────────────────────────
+function gameOver(){
+  clearInterval(state.waveIntervalId);
+  state.running=false;
+  document.getElementById('go-stats').textContent=`Wave ${state.wave} · ${state.kills} kills · ${state.marks} Marks earned`;
+  document.getElementById('gameover').classList.add('open');
 }
 
-// AUTO
-setInterval(()=>{
-  if(autoClick) clickCoins();
-},500);
-
-// UPDATE
-function updateUI(){
-  document.getElementById("coins").textContent=coins;
-  document.getElementById("rebirths").textContent=rebirths;
-  document.getElementById("power").textContent=getPower();
-  renderInventory();
-  renderEquipped();
+function resetGame(){
+  document.getElementById('gameover').classList.remove('open');
+  state.enemies.forEach(e=>{ const el=document.getElementById(`enemy-${e.id}`); if(el)el.remove(); });
+  document.querySelectorAll('.enemy-token').forEach(e=>e.remove());
+  state.coins=50; state.marks=0; state.kills=0; state.wave=0;
+  state.baseHP=20; state.running=false; state.grid={};
+  state.enemies=[]; state.pendingEnemies=[];
+  document.getElementById('btn-wave').disabled=false;
+  updateHUD(); renderGrid(); renderDeploySlots();
 }
 
-updateUI();
+// ─────────────────────────────────────────────
+//  INIT
+// ─────────────────────────────────────────────
+buildGrid();
+renderGrid();
+renderDeploySlots();
+updateHUD();
+updatePity();
 </script>
-
 </body>
 </html>
